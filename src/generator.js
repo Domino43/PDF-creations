@@ -1,0 +1,159 @@
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
+const sharp = require('sharp');
+
+const LAYOUTS = ['Daily', 'Weekly', 'Monthly'];
+
+async function ensureDir(dirPath) {
+  await fs.mkdir(dirPath, { recursive: true });
+}
+
+function toSlug(value) {
+  return value.toLowerCase();
+}
+
+function getDatasetLines(dataset = {}) {
+  return Object.entries(dataset).map(([key, value]) => `${key}: ${value}`);
+}
+
+async function createLayoutPdf(layout, dataset, outputPath) {
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([595, 842]);
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+  page.drawText(`${layout} Planner`, {
+    x: 50,
+    y: 790,
+    size: 26,
+    font: boldFont,
+    color: rgb(0.1, 0.1, 0.1)
+  });
+
+  page.drawText('Generated from one shared dataset', {
+    x: 50,
+    y: 760,
+    size: 12,
+    font,
+    color: rgb(0.35, 0.35, 0.35)
+  });
+
+  const lines = getDatasetLines(dataset);
+  let y = 720;
+  for (const line of lines) {
+    page.drawText(line, {
+      x: 50,
+      y,
+      size: 12,
+      font,
+      color: rgb(0.15, 0.15, 0.15)
+    });
+    y -= 20;
+  }
+
+  const bytes = await pdfDoc.save();
+  await fs.writeFile(outputPath, bytes);
+}
+
+function createPreviewSvg(layout, dataset) {
+  const lines = getDatasetLines(dataset).slice(0, 8);
+  const lineText = lines
+    .map((line, index) => `<text x="90" y="${260 + index * 70}" font-size="42" fill="#202020">${escapeHtml(line)}</text>`)
+    .join('');
+
+  return `
+<svg width="1240" height="1754" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1240" height="1754" fill="#fefefe"/>
+  <rect x="45" y="45" width="1150" height="1664" fill="none" stroke="#d9d9d9" stroke-width="6"/>
+  <text x="90" y="170" font-size="66" font-family="Arial" font-weight="700" fill="#111111">${escapeHtml(layout)} Planner</text>
+  ${lineText}
+</svg>`;
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+async function createPreview(layout, dataset, outputPath) {
+  const svg = createPreviewSvg(layout, dataset);
+  await sharp(Buffer.from(svg)).png().toFile(outputPath);
+}
+
+async function createMockup(previewPath, outputPath) {
+  const backgroundSvg = `
+<svg width="1800" height="1200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#d9d0c2"/>
+      <stop offset="100%" stop-color="#c8b89e"/>
+    </linearGradient>
+  </defs>
+  <rect width="1800" height="1200" fill="url(#bg)"/>
+  <rect x="90" y="80" width="1620" height="1040" rx="38" fill="#ede3d5" opacity="0.35"/>
+</svg>`;
+
+  const croppedPreview = await sharp(previewPath)
+    .extract({ left: 70, top: 90, width: 1100, height: 1520 })
+    .resize({ width: 700, height: 950, fit: 'cover' })
+    .png()
+    .toBuffer();
+
+  const shadow = await sharp({
+    create: {
+      width: 720,
+      height: 970,
+      channels: 4,
+      background: '#00000066'
+    }
+  })
+    .blur(12)
+    .png()
+    .toBuffer();
+
+  await sharp(Buffer.from(backgroundSvg))
+    .composite([
+      { input: shadow, left: 545, top: 130 },
+      { input: croppedPreview, left: 535, top: 120 }
+    ])
+    .png()
+    .toFile(outputPath);
+}
+
+async function generateBatchOutputs(dataset, options = {}) {
+  const outputDir = options.outputDir || path.resolve(process.cwd(), 'output');
+  const layouts = options.layouts || LAYOUTS;
+
+  const pdfDir = path.join(outputDir, 'pdf');
+  const previewDir = path.join(outputDir, 'preview');
+  const mockupDir = path.join(outputDir, 'mockup');
+
+  await Promise.all([ensureDir(pdfDir), ensureDir(previewDir), ensureDir(mockupDir)]);
+
+  const results = [];
+
+  for (const layout of layouts) {
+    const slug = toSlug(layout);
+    const pdfPath = path.join(pdfDir, `${slug}.pdf`);
+    const previewPath = path.join(previewDir, `${slug}.png`);
+    const mockupPath = path.join(mockupDir, `${slug}-mockup.png`);
+
+    await createLayoutPdf(layout, dataset, pdfPath);
+    await createPreview(layout, dataset, previewPath);
+    await createMockup(previewPath, mockupPath);
+
+    results.push({ layout, pdfPath, previewPath, mockupPath });
+  }
+
+  return results;
+}
+
+module.exports = {
+  LAYOUTS,
+  generateBatchOutputs
+};
