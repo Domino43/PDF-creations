@@ -10,11 +10,18 @@ async function ensureDir(dirPath) {
 }
 
 function toSlug(value) {
-  return value.toLowerCase();
+  const slug = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug || 'layout';
 }
 
 function getDatasetLines(dataset = {}) {
-  return Object.entries(dataset).map(([key, value]) => `${key}: ${value}`);
+  return Object.entries(dataset).flatMap(([key, value]) => {
+    const entries = String(value).split(/\r?\n/);
+    return entries.map((entry, index) => (index === 0 ? `${key}: ${entry}` : `  ${entry}`));
+  });
 }
 
 async function createLayoutPdf(layout, dataset, outputPath) {

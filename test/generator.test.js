@@ -38,3 +38,23 @@ test('generateBatchOutputs creates Daily/Weekly/Monthly pdf, preview and mockup 
     assert.equal(mockupMeta.height, 1200);
   }
 });
+
+test('generateBatchOutputs supports custom layouts and safe output slugs', async () => {
+  const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pdf-creations-custom-'));
+  const layouts = ['Two Page', 'Quarterly/2026'];
+
+  const outputs = await generateBatchOutputs(
+    {
+      Notes: 'Line one\nLine two'
+    },
+    { outputDir, layouts }
+  );
+
+  assert.deepEqual(
+    outputs.map((output) => output.layout),
+    layouts
+  );
+
+  assert.equal(path.basename(outputs[0].pdfPath), 'two-page.pdf');
+  assert.equal(path.basename(outputs[1].pdfPath), 'quarterly-2026.pdf');
+});
