@@ -17,5 +17,8 @@
   "dependencies": {
     "pdf-lib": "^1.17.1",
     "sharp": "^0.35.4"
+  },
+  "engines": {
+    "node": ">=20.9.0"
   }
 }

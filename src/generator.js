@@ -135,6 +135,7 @@ async function createMockup(previewPath, outputPath) {
 async function generateBatchOutputs(dataset, options = {}) {
   const outputDir = options.outputDir || path.resolve(process.cwd(), 'output');
   const layouts = options.layouts || LAYOUTS;
+  const usedSlugs = new Set();
 
   const pdfDir = path.join(outputDir, 'pdf');
   const previewDir = path.join(outputDir, 'preview');
@@ -145,7 +146,14 @@ async function generateBatchOutputs(dataset, options = {}) {
   const results = [];
 
   for (const layout of layouts) {
-    const slug = toSlug(layout);
+    const baseSlug = toSlug(layout);
+    let slug = baseSlug;
+    let counter = 2;
+    while (usedSlugs.has(slug)) {
+      slug = `${baseSlug}-${counter}`;
+      counter += 1;
+    }
+    usedSlugs.add(slug);
     const pdfPath = path.join(pdfDir, `${slug}.pdf`);
     const previewPath = path.join(previewDir, `${slug}.png`);
     const mockupPath = path.join(mockupDir, `${slug}-mockup.png`);

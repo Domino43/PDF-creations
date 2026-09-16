@@ -58,3 +58,13 @@ test('generateBatchOutputs supports custom layouts and safe output slugs', async
   assert.equal(path.basename(outputs[0].pdfPath), 'two-page.pdf');
   assert.equal(path.basename(outputs[1].pdfPath), 'quarterly-2026.pdf');
 });
+
+test('generateBatchOutputs resolves colliding layout slugs to unique files', async () => {
+  const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pdf-creations-collision-'));
+  const layouts = ['Daily Plan', 'Daily/Plan'];
+
+  const outputs = await generateBatchOutputs({ Task: 'Collision check' }, { outputDir, layouts });
+
+  assert.equal(path.basename(outputs[0].pdfPath), 'daily-plan.pdf');
+  assert.equal(path.basename(outputs[1].pdfPath), 'daily-plan-2.pdf');
+});

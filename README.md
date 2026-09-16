@@ -9,6 +9,8 @@ Generate multiple PDF planner variants from one dataset, then create preview/moc
 
 ## Usage
 
+Requires Node.js `>=20.9.0`.
+
 ```bash
 npm install
 npm run generate
