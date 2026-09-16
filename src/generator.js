@@ -26,29 +26,39 @@ function getDatasetLines(dataset = {}) {
 
 async function createLayoutPdf(layout, dataset, outputPath) {
   const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([595, 842]);
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  let page = pdfDoc.addPage([595, 842]);
 
-  page.drawText(`${layout} Planner`, {
-    x: 50,
-    y: 790,
-    size: 26,
-    font: boldFont,
-    color: rgb(0.1, 0.1, 0.1)
-  });
+  const drawHeader = (targetPage, continuation = false) => {
+    targetPage.drawText(`${layout} Planner${continuation ? ' (cont.)' : ''}`, {
+      x: 50,
+      y: 790,
+      size: 26,
+      font: boldFont,
+      color: rgb(0.1, 0.1, 0.1)
+    });
 
-  page.drawText('Generated from one shared dataset', {
-    x: 50,
-    y: 760,
-    size: 12,
-    font,
-    color: rgb(0.35, 0.35, 0.35)
-  });
+    targetPage.drawText('Generated from one shared dataset', {
+      x: 50,
+      y: 760,
+      size: 12,
+      font,
+      color: rgb(0.35, 0.35, 0.35)
+    });
+  };
+
+  drawHeader(page);
 
   const lines = getDatasetLines(dataset);
   let y = 720;
   for (const line of lines) {
+    if (y < 80) {
+      page = pdfDoc.addPage([595, 842]);
+      drawHeader(page, true);
+      y = 720;
+    }
+
     page.drawText(line, {
       x: 50,
       y,

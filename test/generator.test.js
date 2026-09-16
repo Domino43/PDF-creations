@@ -67,4 +67,22 @@ test('generateBatchOutputs resolves colliding layout slugs to unique files', asy
 
   assert.equal(path.basename(outputs[0].pdfPath), 'daily-plan.pdf');
   assert.equal(path.basename(outputs[1].pdfPath), 'daily-plan-2.pdf');
+  assert.equal(path.basename(outputs[0].previewPath), 'daily-plan.png');
+  assert.equal(path.basename(outputs[1].previewPath), 'daily-plan-2.png');
+  assert.equal(path.basename(outputs[0].mockupPath), 'daily-plan-mockup.png');
+  assert.equal(path.basename(outputs[1].mockupPath), 'daily-plan-2-mockup.png');
+});
+
+test('generateBatchOutputs paginates pdf content for large datasets', async () => {
+  const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pdf-creations-pages-'));
+  const dataset = {};
+  for (let index = 1; index <= 55; index += 1) {
+    dataset[`Item${index}`] = `Value ${index}`;
+  }
+
+  const [dailyOutput] = await generateBatchOutputs(dataset, { outputDir, layouts: ['Daily'] });
+  const pdfBytes = await fs.readFile(dailyOutput.pdfPath);
+  const pdf = await PDFDocument.load(pdfBytes);
+
+  assert.ok(pdf.getPageCount() > 1);
 });
