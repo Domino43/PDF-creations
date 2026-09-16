@@ -21,3 +21,10 @@ Generated files are written to:
 - `output/pdf`
 - `output/preview`
 - `output/mockup`
+
+## Programmatic API
+
+`generateBatchOutputs(dataset, options)` supports:
+
+- `options.outputDir`: custom output directory (default: `./output`)
+- `options.layouts`: custom layouts array (default: `Daily`, `Weekly`, `Monthly`)

@@ -167,8 +167,21 @@ async function createMockup(previewPath, outputPath) {
   <rect x="90" y="80" width="1620" height="1040" rx="38" fill="#ede3d5" opacity="0.35"/>
 </svg>`;
 
-  const croppedPreview = await sharp(previewPath)
-    .extract({ left: 70, top: 90, width: 1100, height: 1520 })
+  const previewImage = sharp(previewPath);
+  const metadata = await previewImage.metadata();
+  const width = metadata.width;
+  const height = metadata.height;
+  if (!width || !height) {
+    throw new Error(`Unable to read preview dimensions for ${previewPath}`);
+  }
+
+  const left = Math.floor(width * 0.056);
+  const top = Math.floor(height * 0.051);
+  const extractWidth = Math.max(1, width - left * 2);
+  const extractHeight = Math.max(1, height - top * 2);
+
+  const croppedPreview = await previewImage
+    .extract({ left, top, width: extractWidth, height: extractHeight })
     .resize({ width: 700, height: 950, fit: 'cover' })
     .png()
     .toBuffer();
