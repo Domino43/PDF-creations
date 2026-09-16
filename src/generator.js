@@ -49,28 +49,80 @@ async function createLayoutPdf(layout, dataset, outputPath) {
   };
 
   drawHeader(page);
+  const textSize = 12;
+  const maxTextWidth = 495;
 
   const lines = getDatasetLines(dataset);
   let y = 720;
   for (const line of lines) {
-    if (y < 80) {
-      page = pdfDoc.addPage([595, 842]);
-      drawHeader(page, true);
-      y = 720;
-    }
+    const wrappedLines = wrapLineToWidth(line, font, textSize, maxTextWidth);
+    for (const wrappedLine of wrappedLines) {
+      if (y < 80) {
+        page = pdfDoc.addPage([595, 842]);
+        drawHeader(page, true);
+        y = 720;
+      }
 
-    page.drawText(line, {
-      x: 50,
-      y,
-      size: 12,
-      font,
-      color: rgb(0.15, 0.15, 0.15)
-    });
-    y -= 20;
+      page.drawText(wrappedLine, {
+        x: 50,
+        y,
+        size: textSize,
+        font,
+        color: rgb(0.15, 0.15, 0.15)
+      });
+      y -= 20;
+    }
   }
 
   const bytes = await pdfDoc.save();
   await fs.writeFile(outputPath, bytes);
+}
+
+function wrapLineToWidth(line, font, size, maxWidth) {
+  const words = String(line).split(' ');
+  const wrapped = [];
+  let currentLine = '';
+
+  const flushCurrentLine = () => {
+    if (currentLine) {
+      wrapped.push(currentLine);
+      currentLine = '';
+    }
+  };
+
+  for (const word of words) {
+    const trial = currentLine ? `${currentLine} ${word}` : word;
+    if (font.widthOfTextAtSize(trial, size) <= maxWidth) {
+      currentLine = trial;
+      continue;
+    }
+
+    if (currentLine) {
+      flushCurrentLine();
+    }
+
+    if (font.widthOfTextAtSize(word, size) <= maxWidth) {
+      currentLine = word;
+      continue;
+    }
+
+    let chunk = '';
+    for (const char of word) {
+      const chunkTrial = `${chunk}${char}`;
+      if (font.widthOfTextAtSize(chunkTrial, size) <= maxWidth) {
+        chunk = chunkTrial;
+      } else {
+        wrapped.push(chunk);
+        chunk = char;
+      }
+    }
+    if (chunk) {
+      currentLine = chunk;
+    }
+  }
+
+  flushCurrentLine();
+  return wrapped.length ? wrapped : [''];
 }
 
 function createPreviewSvg(layout, dataset) {

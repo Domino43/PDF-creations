@@ -86,3 +86,17 @@ test('generateBatchOutputs paginates pdf content for large datasets', async () =
 
   assert.ok(pdf.getPageCount() > 1);
 });
+
+test('generateBatchOutputs wraps long values instead of overflowing width', async () => {
+  const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pdf-creations-wrap-'));
+  const longWord = 'ABCDEFGHIJKLMNOPQRSTUVWX'.repeat(220);
+
+  const [dailyOutput] = await generateBatchOutputs(
+    { Description: longWord },
+    { outputDir, layouts: ['Daily'] }
+  );
+
+  const pdfBytes = await fs.readFile(dailyOutput.pdfPath);
+  const pdf = await PDFDocument.load(pdfBytes);
+  assert.ok(pdf.getPageCount() > 1);
+});
